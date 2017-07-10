@@ -41,6 +41,7 @@
 #include <stdio.h>
 #include "rotation.h"
 #include "twopass_calibration.h"
+#include "wavefolder.h"
 
 extern float user_scalebank[231];
 
@@ -54,7 +55,7 @@ extern float user_scalebank[231];
 #define DMA_xfer_BUFF_LEN (codec_BUFF_LEN/2)
 #define STEREO_BUFSZ (DMA_xfer_BUFF_LEN/2)
 #define MONO_BUFSZ (STEREO_BUFSZ/2)
-					
+
 int32_t	left_buffer[MONO_BUFSZ], right_buffer[MONO_BUFSZ], filtered_buffer[MONO_BUFSZ], filtered_bufferR[MONO_BUFSZ];
 
 extern float log_4096[4096];
@@ -78,7 +79,7 @@ extern float freq_shift[NUM_CHANNELS];
 extern int8_t motion_fadeto_note[NUM_CHANNELS];
 extern int8_t motion_fadeto_scale[NUM_CHANNELS];
 
-extern float motion_morphpos[NUM_CHANNELS]; 
+extern float motion_morphpos[NUM_CHANNELS];
 
 extern uint8_t slider_led_mode;
 
@@ -94,18 +95,18 @@ extern uint16_t potadc_buffer[NUM_ADC3S];
 extern uint16_t adc_buffer[NUM_ADCS];
 
 // **** two pass calibration variables ******
-	// static float qval_b[NUM_CHANNELS]   = {1000,1000,1000,1000,1000,1000};	
+	// static float qval_b[NUM_CHANNELS]   = {1000,1000,1000,1000,1000,1000};
 	// float max_filter_out[NUM_FILTS];
 	// float max_filter_out_buf;
 	// float mean_filter_out[NUM_FILTS];
 	// float mean_filter_out_buf;
 	// int kk;
-// ******************************************	
+// ******************************************
 
 float *c_hiq[6];
 float *c_loq[6];
 float buf_a[NUM_CHANNELS][NUMSCALES][NUM_FILTS][3]; // buffer for first filter of two-pass
-float buf[NUM_CHANNELS][NUMSCALES][NUM_FILTS][3]; 
+float buf[NUM_CHANNELS][NUMSCALES][NUM_FILTS][3];
 float comp_gain[6];
 
 float filter_out[NUM_FILTS][MONO_BUFSZ];
@@ -143,18 +144,18 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	float adc_lag[NUM_CHANNELS];
 	float filter_out_a[NUM_FILTS][MONO_BUFSZ]; 			// first filter out for two-pass
 	float filter_out_b[NUM_FILTS][MONO_BUFSZ]; 			// second filter out for two-pass
-		
+
 	static uint8_t old_scale[NUM_CHANNELS]={-1,-1,-1,-1,-1,-1};
 	static uint8_t old_scale_bank[NUM_CHANNELS]={-1,-1,-1,-1,-1,-1};
 	float tmp, fir, iir, iir_a;
 	float c0,c0_a,c1,c2,c2_a;
 	float a0,a1,a2;
-	
+
 	// Filter parameters
-	static float qval_b[NUM_CHANNELS]   = {0,0,0,0,0,0};	
-	static float qval_a[NUM_CHANNELS]   = {0,0,0,0,0,0};	
+	static float qval_b[NUM_CHANNELS]   = {0,0,0,0,0,0};
+	static float qval_a[NUM_CHANNELS]   = {0,0,0,0,0,0};
 	static float qc[NUM_CHANNELS]   	= {0,0,0,0,0,0};
-	extern uint32_t qval[NUM_CHANNELS];					
+	extern uint32_t qval[NUM_CHANNELS];
 	float var_q, inv_var_q, var_f, inv_var_f;
 	float pos_in_cf; 		 // % of Qknob position within crossfade region
 	float ratio_a, ratio_b;  // two-pass filter crossfade ratios
@@ -276,11 +277,11 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					c_hiq[i]=(float *)(filter_bpre_coefs_Minor_800Q); 				// Minor scale/chords
 					c_loq[i]=(float *)(filter_bpre_coefs_Minor_2Q); 				// Minor scale/chords
 				} else if (scale_bank[i]== 2){
-					c_hiq[i]=(float *)(filter_bpre_coefs_western_eq_800Q); 			// Western intervals	
-					c_loq[i]=(float *)(filter_bpre_coefs_western_eq_2Q); 				
+					c_hiq[i]=(float *)(filter_bpre_coefs_western_eq_800Q); 			// Western intervals
+					c_loq[i]=(float *)(filter_bpre_coefs_western_eq_2Q);
 				} else if (scale_bank[i]== 3){
-					c_hiq[i]=(float *)(filter_bpre_coefs_western_twointerval_eq_800Q); 	// Western triads			
-					c_loq[i]=(float *)(filter_bpre_coefs_western_twointerval_eq_2Q); 				
+					c_hiq[i]=(float *)(filter_bpre_coefs_western_twointerval_eq_800Q); 	// Western triads
+					c_loq[i]=(float *)(filter_bpre_coefs_western_twointerval_eq_2Q);
 				} else if (scale_bank[i]== 4){
 					c_hiq[i]=(float *)(filter_bpre_coefs_twelvetone_800Q);			// Chromatic scale - each of the 12 western semitones spread on multiple octaves
 					c_loq[i]=(float *)(filter_bpre_coefs_twelvetone_2Q);			// Chromatic scale - each of the 12 western semitones spread on multiple octaves
@@ -344,7 +345,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 
 	//############################### 2-PASS  ###################################
-	
+
 	if (filter_mode == TWOPASS){
 
 
@@ -352,8 +353,8 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 		param_read_q();
 
 
-	  // CALCULATE FILTER OUTPUTS		
-	  	//filter_out[0-5] are the note[]/scale[]/scale_bank[] filters. 
+	  // CALCULATE FILTER OUTPUTS
+	  	//filter_out[0-5] are the note[]/scale[]/scale_bank[] filters.
 		//filter_out[6-11] are the morph destination values
 		//filter_out[channel1-6][buffer_sample]
 
@@ -373,27 +374,27 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 			// limit q knob range on second filter
 			if 		(qc[channel_num] <  3900){qval_b[channel_num]=1000;}
 			else if (qc[channel_num] >= 3900){qval_b[channel_num]=1000 + (qc[channel_num] - 3900)*15 ;} //1000 to 3925
-			
-			
+
+
 			// ************* Two-pass calibration PT 1/2 *************
-				// 			if (qval_b[channel_num]<3910){ 			
+				// 			if (qval_b[channel_num]<3910){
 				// 				kk += 1;
 				// 				// update qval_b and max_filt_out every 100 samples
 				// 				if (kk> 1000){
 				// 					qval_b[channel_num]+=1;
 				//  					max_filter_out[channel_num] = max_filter_out_buf;
 				//  					if (mean_filter_out_buf < mean_filter_out[channel_num]){
-				// 						mean_filter_out_buf = mean_filter_out[channel_num] + 100;					
+				// 						mean_filter_out_buf = mean_filter_out[channel_num] + 100;
 				//  					}
-				//  					mean_filter_out[channel_num] = mean_filter_out_buf; 					
+				//  					mean_filter_out[channel_num] = mean_filter_out_buf;
 				// 					max_filter_out_buf=0;
 				// 					mean_filter_out_buf=0;
 				// 					kk=0;
-				// 				}	
+				// 				}
 				// 			}
 			// *******************************************************
-			
-	
+
+
 			// Q/RESONANCE: c0 = 1 - 2/(decay * samplerate), where decay is around 0.01 to 4.0
 			c0_a = 1.0 - exp_4096[(uint32_t)(qval_a[channel_num] /1.4)+200]/10.0; //exp[200...3125]
 			c0   = 1.0 - exp_4096[(uint32_t)(qval_b[channel_num] /1.4)+200]/10.0; //exp[200...3125]
@@ -415,7 +416,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
    			ratio_b *= 43801543.68f / twopass_calibration[(uint32_t)(qval_b[channel_num]-900)]; // FIXME: 43801543.68f gain could be directly printed into calibration vector
 //  			ratio_b *= 43801543.68 / twopass_calibration[500]; // FIXME: 43801543.68f gain could be directly printed into calibration vector
 // 			ratio_b *= 0.5;
-			
+
 		    // AMPLITUDE: Boost high freqs and boost low resonance
 			c2_a  = (0.003 * c1) - (0.1*c0_a) + 0.102;
 			c2    = (0.003 * c1) - (0.1*c0)   + 0.102;
@@ -442,7 +443,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				filter_out_b[j][i] = buf[channel_num][scale_num][filter_num][1];
 
   				filter_out[j][i] = (ratio_a * filter_out_a[j][i]) - filter_out_b[j][i]; // output of filter two needs to be inverted to avoid phase cancellation
-			
+
 			// *********************** Two-pass calibration pt 2/2 *********************
 				// 				if (filter_out[j][i]> max_filter_out_buf){
 				// 					max_filter_out_buf = filter_out[j][i];
@@ -450,7 +451,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				// 				mean_filter_out_buf *= (1-1/900);
 				// 				mean_filter_out_buf += fabsf(filter_out[j][i]) * 1/900;
 			// **************************************************************************
-			
+
 			}
 
 			// VOCT output
@@ -510,13 +511,13 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 	}
 
-	
-	
+
+
 	//###################### 1-PASS ###################################
-	
+
 	else if (filter_mode != TWOPASS)
 	{
-		
+
 		// UPDATE QVAL
 		param_read_q();
 
@@ -635,7 +636,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 					for (i=0;i<MONO_BUFSZ/(96000/SAMPLERATE);i++){
 
-						
+
 						tmp= buf[channel_num][scale_num][filter_num][0];
 						buf[channel_num][scale_num][filter_num][0] = buf[channel_num][scale_num][filter_num][1];
 
@@ -657,7 +658,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 			}
 		}
 	} 			// Filter-mode
-	
+
 
 	// ##########################################################
 
@@ -667,11 +668,11 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 		filtered_buffer[i]=0;
 		filtered_bufferR[i]=0;
-		
+
 		update_morph();
 
 		for (j=0;j<NUM_CHANNELS;j++){
-		
+
 			if (motion_morphpos[j]==0.0)
 				f_blended = filter_out[j][i];
 			else
@@ -723,14 +724,13 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				else // SMOOTH OUT DATA BETWEEN ADC READS
 					channel_level[j] += level_inc[j];
 		 	}
-			
+
 			// APPLY LEVEL TO AUDIO OUT
 
 			if (j & 1)
-				filtered_buffer[i] += (f_blended * channel_level[j]);
+				filtered_buffer[i] += apply_wavefolder(channel_level[j], f_blended);
 			else
-				filtered_bufferR[i] += (f_blended * channel_level[j]);
-
+				filtered_bufferR[i] += apply_wavefolder(channel_level[j], f_blended);
 		}
 
 	}
@@ -751,7 +751,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				ENVOUT_preload[j]=-1.0*f_blended;
 		}
 	}
-	
+
 	audio_convert_stereo24_to_2x16(DMA_xfer_BUFF_LEN, filtered_buffer, filtered_bufferR, dst); //1.5us
 
 	filter_type_changed=0;
